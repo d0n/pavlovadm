@@ -1,10 +1,10 @@
 """pavlovadm packaging information"""
 name = 'pavlovadm'
 provides = ['pavloavadm']
-version = '0.1'
+version = '0.2'
 install_requires = [
     'requests', 'inquirer', 'cmd', 'PyYAML']
-url = 'https://github.com/d0n/pavlovadm'
+url = 'https://pypi.org/project/pavlovadm/'
 license = "GPLv3+"
 author = 'd0n'
 description = 'utility to manage pavlov\'s rcon like admin interface'
