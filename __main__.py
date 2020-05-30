@@ -1,0 +1,2 @@
+import pavlovadm
+pavlovadm.cli()
