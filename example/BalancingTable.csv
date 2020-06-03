@@ -1,3 +1,4 @@
+# ~/.config/pavlovadm/BalancingTable.csv
 ---,Cost,KillBonus,BaseDamage,ArmourDamage,ArmourPenetration,HelmetDamage,HelmetBleed
 ak,1400,600,20,35,60,100,50
 uzi,950,600,20,20,10,50,25

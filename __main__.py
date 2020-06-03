@@ -1,2 +1,2 @@
 import pavlovadm
-pavlovadm.cli()
+pavlovadm.main()

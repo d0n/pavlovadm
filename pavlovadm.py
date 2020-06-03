@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
-from os.path import expanduser
+from os import \
+    makedirs, environ
+
+from os.path import \
+    join as pjoin, \
+    expanduser, isdir, isfile, dirname
 
 from socket import \
     socket as sock, \
@@ -8,7 +13,16 @@ from socket import \
     SOCK_DGRAM, SHUT_WR, \
     AF_INET, SOCK_STREAM
 
-from yaml import load as yload, dump as ydump, Loader, Dumper
+from argparse import ArgumentParser
+
+from yaml import \
+    load as yload, \
+    dump as ydump, \
+    Loader, Dumper
+
+from json import \
+    loads as jload, \
+    dumps as jdump
 
 from time import sleep
 
@@ -17,20 +31,23 @@ try:
 except ModuleNotFoundError:
     pass
 
-import requests
+from requests import post
 
-import inquirer
+from inquirer import prompt, List as iList
 
-import cmd
+from cmd import Cmd
 
-class PylovCLI(cmd.Cmd):
+class PavlovADM(Cmd):
 	servers = {}
 	socket = sock(AF_INET, SOCK_STREAM)
+	socket.settimeout(3)
 	gameini = ''
 	itemtbl = ''
 	maptbl = '~/.cache/pavlovadm/maps.tbl'
 	mapnames = {}
 	maps = {}
+	hlp = None
+	cnt = 0
 	srv = None
 	def __init__(self, *args, **kwargs):
 		self.use_rawinput = False
@@ -44,15 +61,20 @@ class PylovCLI(cmd.Cmd):
 			print('\033c')
 			print('known index error occured, restarting')
 			self.serverselect()
-	
 
 	def serverselect(self):
 		if not self.srv:
 			self.srv = self._login()
-		#print(self.servers)
+		if not self.hlp:
+			while True:
+				hlp = self._send('Help')
+				if hlp:
+					break
+			self.hlp = hlp
 		cmd = self._cmdselects()
 		if cmd is None:
-			return self.serverselect()
+			return self._cmdselects()
+		#print(cmd)
 		res = self.fire(cmd.strip('<>'))
 		if res:
 			print(res)
@@ -66,13 +88,14 @@ class PylovCLI(cmd.Cmd):
 	def _login(self):
 		"""server login method"""
 		ask = [
-			inquirer.List(
-				'srv',
-				message='select server',
-				choices=[s for s in self.servers.keys()] + ['<Exit>'],
-			),
-		]
-		srv = list(inquirer.prompt(ask).values())[0]
+            iList(
+                'srv',
+                carousel=True,
+                message='select server',
+                choices=[s for s in self.servers.keys()] + ['<Exit>'],
+            ),
+        ]
+		srv = list(prompt(ask).values())[0]
 		if srv == '<Exit>':
 			exit()
 		passwd = self.servers[srv][0]
@@ -89,12 +112,12 @@ class PylovCLI(cmd.Cmd):
 		if mapid in self.mapnames:
 			return self.mapnames[mapid]
 		url = 'https://steamcommunity.com/sharedfiles/filedetails/?id='
-		res = requests.post('%s%s'%(url, mapid.strip('UGC')))
+		res = post('%s%s'%(url, mapid.strip('UGC')))
 		for l in res.text.split('\n'):
 			if 'workshopItemTitle' in l:
 				return l.split('>')[1].split('<')[0]
 
-	def _getmaps(self):
+	def _getmaps(self, noask=None):
 		if not self.maps:
 			maplst = self.gameini
 			if len(self.servers[self.srv]) > 1:
@@ -107,7 +130,6 @@ class PylovCLI(cmd.Cmd):
 				lines = mfh.readlines()
 			with open(expanduser(self.maptbl), 'r') as mfh:
 				self.mapnames = yload(mfh.read(), Loader=Loader)
-			print('receiving map names (needed only once per map)...')
 			for l in lines:
 				if not l or not l.startswith('MapRotation'):
 					continue
@@ -118,28 +140,29 @@ class PylovCLI(cmd.Cmd):
 				self.mapnames[ugcid] = name
 			with open(expanduser(self.maptbl), 'w+') as mfh:
 				mfh.write(ydump(self.mapnames, Dumper=Dumper))
+			if noask: return
 		ask = [
-			inquirer.List(
-				'map',
-				carousel=True,
-				message='select map',
-				choices=[m for m in self.maps.keys()] + ['<Return>'],
-			),
-		]
-		mapp = list(inquirer.prompt(ask).values())[0]
+          iList(
+            'map',
+            carousel=True,
+            message='select map',
+            choices=[m for m in self.maps.keys()] + ['<Return>'],
+          ),
+        ]
+		mapp = list(prompt(ask).values())[0]
 		if mapp == '<Return>':
 			return
 		mmod = self.maps[mapp][1]
 		modes = [mmod] + [s for s in ['SND', 'TDM', 'DM', 'GUN'] if s != mmod]
 		ask = [
-			inquirer.List(
-				'mod',
-				carousel=True,
-				message='select mode (irrelevant if set by map)',
-				choices=[m for m in modes] + ['<Return>'],
-			),
-		]
-		mode = list(inquirer.prompt(ask).values())[0]
+            iList(
+                'mod',
+                carousel=True,
+                message='select mode (irrelevant if set by map)',
+                choices=[m for m in modes] + ['<Return>'],
+            ),
+        ]
+		mode = list(prompt(ask).values())[0]
 		if mode != '<Return>':
 			return '%s %s'%(self.maps[mapp][0], mode)
 
@@ -147,57 +170,56 @@ class PylovCLI(cmd.Cmd):
 		with open(self.itemtbl, 'r') as ifh:
 			items = [l.split(',')[0] for l in ifh.readlines()]
 		ask = [
-			inquirer.List(
-				'item',
-				carousel=True,
-				message='select item',
-				choices=items  + ['<Return>'],
-			),
-		]
-		item = list(inquirer.prompt(ask).values())[0]
+            iList(
+                'item',
+                carousel=True,
+                message='select item',
+                choices=items  + ['<Return>'],
+            ),
+        ]
+		item = list(prompt(ask).values())[0]
 		if item != '<Return>':
-				return item
+			return item
 
 
 	def _getskin(self):
 		ask = [
-			inquirer.List(
-				'skin',
-				carousel=True,
-				message='select skin',
-				choices=['clown', 'prisoner', 'naked', 'farmer', 'russian', 'nato', '<Return>'],
-			),
-		]
-		skin = list(inquirer.prompt(ask).values())[0]
+            iList(
+                'skin',
+                carousel=True,
+                message='select skin',
+                choices=['clown', 'prisoner', 'naked', 'farmer', 'russian', 'nato', '<Return>'],
+            ),
+        ]
+		skin = list(prompt(ask).values())[0]
 		if skin != '<Return>':
 			return skin
 
 	def _getammotype(self):
 		ask = [
-			inquirer.List(
-				'ammo',
-				carousel=True,
-				message='select ammo-limit',
-				choices=[0, 1, 2, '<Return>'],
-			),
-		]
-		ammo = list(inquirer.prompt(ask).values())[0]
+            iList(
+                'ammo',
+                carousel=True,
+                message='select ammo-limit',
+                choices=[0, 1, 2, '<Return>'],
+            ),
+        ]
+		ammo = list(prompt(ask).values())[0]
 		if ammo != '<Return>':
 			return ammo
 
 	def _getteam(self):
 		ask = [
-			inquirer.List(
-				'team',
-				carousel=True,
-				message='select team',
-				choices=["Blue Team (Defenders)", "Red Team (Attackers)", '<Return>'],
-			),
-		]
-		team = list(inquirer.prompt(ask).values())[0]
+            iList(
+                'team',
+                carousel=True,
+                message='select team',
+                choices=["Blue Team (Defenders)", "Red Team (Attackers)", '<Return>'],
+            ),
+        ]
+		team = list(prompt(ask).values())[0]
 		if team != '<Return>':
 			return team
-
 
 	def _getcash(self):
 		c = 0
@@ -210,44 +232,39 @@ class PylovCLI(cmd.Cmd):
 				print('thats not a number - let\'s try again')
 			else:
 				print('too dumb for numbers? o.0 aborting...')
-			
+
 	def _cmdselects(self):
-		noargs = ['ResetSND', 'RefreshList', 'RotateMap', 'ServerInfo', 'Help', '<Disconnect>']
+		noargs = ['Info', 'ResetSND', 'RefreshList', 'RotateMap', 'ServerInfo', 'Help', '<Disconnect>']
 		steams = ['Kick', 'Ban', 'Unban', 'InspectPlayer']
 		others = ['SwitchMap', 'SwitchTeam', 'GiveItem', 'GiveCash', 'GiveTeamCash', 'SetPlayerSkin', 'SetLimitedAmmoType']
-		hlp = self._send('Help')
-		#print(hlp)
+		order = ['Info', 'SwitchMap', 'RotateMap', 'ResetSND', 'Kick', 'Ban', 'Unban', 'InspectPlayer', 'GiveItem', 'GiveCash', 'GiveTeamCash', 'SetPlayerSkin', 'SetLimitedAmmoType', 'RefreshList', 'ServerInfo', '<Disconnect>']
 		try:
-			hlp = hlp.strip().strip('{}').split('": "')[1].strip().rstrip('"')
+			hlp = self.hlp.strip().strip('{}').split('": "')[1].strip().rstrip('"')
 		except IndexError as err:
-			print('\033c')
-			print(err)
-			print('the above error occoured - restarting...')
-			return
+			print('index error occoured while interpreting %s - restarting...'%hlp)
+			return self._cmdselects()
 		hlp = [h.split(' ')[0] for h in hlp.split(', ') if h.split(' ')[0] != 'Disconnect'] + ['<Disconnect>']
 		ask = [
-			inquirer.List(
-				'cmd',
-				carousel=True,
-				message='select command',
-				choices=hlp,
-			),
-		]
-		cmd = list(inquirer.prompt(ask).values())[0].strip()
+            iList(
+                'cmd',
+                carousel=True,
+                message='select command',
+                choices=order,
+            ),
+        ]
+		cmd = list(prompt(ask).values())[0].strip()
 		if cmd in noargs:
 			return cmd
 		elif cmd in steams:
 			sid = self._getsteamid(cmd)
-			#print(sid)
 			if not sid:
-					cmd = None
-					return
+				return
 			return '%s %s'%(cmd, sid)
 		elif cmd in others:
 			if cmd == 'SwitchMap':
 				mapmod = self._getmaps()
 				if not mapmod:
-						return
+					return
 				return 'SwitchMap %s'%mapmod
 			elif cmd == 'SwitchTeam':
 				sid = self._getsteamid(cmd)
@@ -267,7 +284,7 @@ class PylovCLI(cmd.Cmd):
 			elif cmd == 'GiveTeamCash':
 				team = self._getteam()
 				if not team:
-						return
+					return
 				return 'GiveTeamCash %s %s'%(team, self._getcash())
 			elif cmd == 'SetPlayerSkin':
 				sid = self._getsteamid(cmd)
@@ -277,80 +294,107 @@ class PylovCLI(cmd.Cmd):
 			elif cmd == 'SetLimitedAmmoType':
 				ammo = self._getammotype()
 				if not ammo:
-						return
+					return
 				return 'SetLimitedAmmoType %s'%ammo
 
 	def _getsteamid(self, cmd):
 		userids = self._players()
 		if not userids:
-			print('error: executing "%s" is impossible - no players\n\n'%cmd)
-			sleep(2)
+			print('\nerror: executing "%s" is impossible - no players\n'%cmd)
 			return
 		ask = [
-			inquirer.List(
-				'user',
-				carousel=True,
-				message='select user to %s'%cmd,
-				choices=list(userids.keys()) + ['<Return>'],
-			),
-		]
-		usr = list(inquirer.prompt(ask).values())[0]
+            iList(
+                'user',
+                carousel=True,
+                message='select user to %s'%cmd,
+                choices=list(userids.keys()) + ['<Return>'],
+            ),
+        ]
+		usr = list(prompt(ask).values())[0]
 		if usr == '<Return>':
 			return
 		return userids[usr]
 
 	def fire(self, cmd):
-		print(cmd)
-		res = self._send(cmd)
-		if res:
-			print(res)
+		#print(cmd)
+		if cmd == 'Info':
+			if not self.maps:
+				self._getmaps(True)
+			msg = '%s\n%s\n%s\n'%(
+                '\n'.join('%s %s'%(k, v) for (k, v) in self.maps.items()),
+                self._send('ServerInfo'), self._send('RefreshList'))
+			return msg
+		return self._send(cmd)
 
 	def _players(self):
 		pout = self._send('RefreshList')
-		pout = pout.split('{\n\t"PlayerList": [')[1]
-		pout = pout.split('\t]\n}')[0]
-		#print(pout)
-		_players = {}
-		for blk in pout.split('}'):
-			useruid = [l.strip() for l in blk.rstrip('}').split('\n') if l.strip() and l.strip() not in (',', '{')]
-			if not useruid or str(useruid).strip() == '[\']\']': continue
-			#print(useruid)
-			_players[useruid[0].split('": "')[1].rstrip('",')] = useruid[1].split('": "')[1].rstrip('"')
-		return _players
+		return jload(pout)['PlayerList']
+		#pout = pout.split('{\n\t"PlayerList": [')[1]
+		#pout = pout.split('\t]\n}')[0]
+		##print(pout)
+		#_players = {}
+		#for blk in pout.split('}'):
+		#	useruid = [l.strip() for l in blk.rstrip('}').split('\n') if l.strip() and l.strip() not in (',', '{')]
+		#	if not useruid or str(useruid).strip() == '[\']\']': continue
+		#	#print(useruid)
+		#	_players[useruid[0].split('": "')[1].rstrip('",')] = useruid[1].split('": "')[1].rstrip('"')
+		#return _players
+
+	def _getresponse(self):
+		res = []
+		while True:
+			ret = self.socket.recv(1024)
+			res.append(ret.decode())
+			if len(ret) <= 1023:
+				break
+		return ''.join(res)
 
 	def _send(self, data, answer=True):
-		self.socket.sendall(data.encode())
-		if answer:
-			data = []
-			while True:
-				dat = self.socket.recv(1024)
-				data.append(dat.decode())
-				if len(dat) <= 1023:
-					break
-			return ''.join(data)
-	
+		res = ''
+		try:
+			self.socket.sendall(data.encode())
+			if answer:
+				res = self._getresponse()
+				if not res:
+					self.socket.sendall('\n'.encode())
+					res = self._getresponse()
+		except TimeOutError:
+			print('we ran into a timeout wile executing "%s"'%data, end='')
+			self.cnt += 1
+			if self.cnt <= 3:
+				print(' retrying...')
+				res = self._send(data, answer)
+			print(' aborting...')
+		finally:
+			return res
 
 	#def default(self, line):
-	#	if line == 'Disconnect':
-	#		self.socket.close()
-	#		self._login()
-	#	else:
-	#		out = self._send(line)
+	#       if line == 'Disconnect':
+	#               self.socket.close()
+	#               self._login()
+	#       else:
+	#               out = self._send(line)
 
+def config(cfg):
+	with open(cfg, 'r') as cfh:
+		return yload(cfh.read(), Loader=Loader)
 
-def cli(settings={}):
-	with open(expanduser('~/.config/pavlovadm/pavlovadm.conf'), 'r') as cfh:
-		configs = yload(cfh.read(), Loader=Loader)
-	app = PylovCLI(**configs)
+def cli(cfgs):
+	app = PavlovADM(**cfgs)
 	app.cmdloop()
 
 
-
-
-
-
-
+def main():
+	__me = 'pavlovadm'
+	__dsc = '%s <by d0n@janeiskla.de> manages pavlov servers commands via it\'s rcon like admin interface'%__me
+	cfgs = config(expanduser('~/.config/%s/%s.conf'%(__me, __me)))
+	pars = ArgumentParser(description=__dsc)
+	pars.add_argument(
+        '--version',
+        action='version', version='%s v0.13'%__me)
+	args = pars.parse_args()
+	cli(cfgs)
 
 
 if __name__ == '__main__':
-	cli()
+	main()

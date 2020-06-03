@@ -1,0 +1,16 @@
+MANIFEST.in
+README.md
+__init__.py
+__main__.py
+__pkginfo__.py
+setup.py
+example/BalancingTable.csv
+example/Game.ini
+example/pavlovadm.conf
+example/public.ini
+pavlovadm.egg-info/PKG-INFO
+pavlovadm.egg-info/SOURCES.txt
+pavlovadm.egg-info/dependency_links.txt
+pavlovadm.egg-info/entry_points.txt
+pavlovadm.egg-info/requires.txt
+pavlovadm.egg-info/top_level.txt

@@ -1,0 +1,27 @@
+Metadata-Version: 1.1
+Name: pavlovadm
+Version: 0.9
+Summary: utility to manage pavlov's rcon like admin interface
+Home-page: https://pypi.org/project/pavlovadm/
+Author: d0n
+Author-email: d0n@janeiskla.de
+License: GPLv3+
+Description: utility to manage pavlov's rcon like admin interface
+Platform: UNKNOWN
+Classifier: Environment :: Console
+Classifier: Environment :: MacOS X
+Classifier: Environment :: Win32 (MS Windows)
+Classifier: Environment :: X11 Applications
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: Intended Audience :: System Administrators
+Classifier: Intended Audience :: Information Technology
+Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Security
+Classifier: Topic :: Security :: Cryptography
+Classifier: Topic :: Desktop Environment
+Classifier: Topic :: Utilities
+Classifier: Topic :: Desktop Environment
+Provides: pavloavadm
