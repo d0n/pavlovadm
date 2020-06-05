@@ -31,7 +31,9 @@ setup:
 
 ``ssh-keygen -t ed25519`` # creates nice small keys with strong security
 
-``echo "command=/path/to/pavlovadm $(cat ~/.ssh/id_ed25519.pub)" >~/.ssh/authorized_keys`` # set path to pavlovadm and authorized_keys file
+With the key copied to the home of a user allowed to write to the authorized_keys file you can do sth. like this:
+
+``echo "command=/path/to/pavlovadm $(cat ~/id_ed25519.pub)" >>/path/to/authorized_keys`` # set path to pavlovadm and authorized_keys file
 
 You then simply can connect to that server using ``ssh -i ~/.ssh/ed_25519 user@host`` to be dropped into the rcon tool using the encrypted connection
 of SSH. The RCON ports don't need to be opened to the internet any more though.

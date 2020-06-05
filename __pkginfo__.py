@@ -1,7 +1,7 @@
 """pavlovadm packaging information"""
 name = 'pavlovadm'
 provides = ['pavloavadm']
-version = '1.1'
+version = '1.4'
 install_requires = [
     'requests', 'inquirer', 'PyYAML']
 url = 'https://pypi.org/project/pavlovadm/'
@@ -35,3 +35,8 @@ entry_points = {
 
 package_data = {
     '': ['pavlovadm/example']}
+
+data_files=[
+    ('share/pavlovadm', [
+        'pavlovadm/example/BalancingTable.csv', 'pavlovadm/example/Game.ini', 'pavlovadm/example/public.ini'])]
+

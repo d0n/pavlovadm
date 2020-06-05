@@ -30,7 +30,7 @@ from time import sleep
 
 try:
     import readline
-except ModuleNotFoundError:
+except (ImportError, ModuleNotFoundError):
     pass
 
 from requests import post
@@ -39,7 +39,7 @@ from inquirer import prompt, List as iList
 
 from cmd import Cmd
 
-from colortext import tabd
+from pavlovadm.colortext import tabd
 
 class PavlovADM(Cmd):
 	servers = {}
@@ -132,8 +132,13 @@ class PavlovADM(Cmd):
 				print('error: cannot read maplist if no absolute path is provided')
 			with open(maplst, 'r') as mfh:
 				lines = mfh.readlines()
-			with open(expanduser(self.maptbl), 'r') as mfh:
-				self.mapnames = yload(mfh.read(), Loader=Loader)
+			try:
+				with open(expanduser(self.maptbl), 'r') as mfh:
+					self.mapnames = yload(mfh.read(), Loader=Loader)
+			except FileNotFoundError:
+				with open(expanduser(self.maptbl), 'w+') as mfh:
+					mfh.write(ydump({}, Dumper=Dumper))
+				self.mapnames = {}
 			for l in lines:
 				if not l or not l.startswith('MapRotation'):
 					continue
@@ -391,7 +396,20 @@ def cli(cfgs):
 def main():
 	__me = 'pavlovadm'
 	__dsc = '%s <by d0n@janeiskla.de> manages pavlov servers commands via it\'s rcon like admin interface'%__me
-	cfgs = config(expanduser('~/.config/%s/%s.conf'%(__me, __me)))
+	cfgdir = expanduser('~/.config/%s'%__me)
+	cacdir = expanduser('~/.cache/%s'%__me)
+	makedirs(cfgdir)
+	makedirs(cacdir)
+	with open('usr/local/share/pavlovadm/pavlovadm.conf', 'r') as lfh, open('%s/pavlovadm.conf'%cfgdir, 'w+') as gfh:
+		gfh.write(lfh.read())
+	with open('usr/local/share/pavlovadm/Game.ini', 'r') as lfh, open('%s/Game.ini'%cfgdir, 'w+') as gfh:
+		gfh.write(lfh.read())
+	with open('usr/local/share/pavlovadm/public.ini', 'r') as lfh, open('%s/public.ini'%cfgdir, 'w+') as gfh:
+		gfh.write(lfh.read())
+	with open('usr/local/share/pavlovadm/BalancingTable.csv', 'r') as lfh, open('%s/BalancingTable.csv'%cfgdir, 'w+') as gfh:
+		gfh.write(lfh.read())
+	cfgs = config('%s/%s.conf'%(__me, __me))
+
 	pars = ArgumentParser(description=__dsc)
 	pars.add_argument(
         '--version',
