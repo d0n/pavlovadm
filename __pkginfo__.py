@@ -7,7 +7,7 @@ install_requires = [
 url = 'https://pypi.org/project/pavlovadm/'
 license = "GPLv3+"
 author = 'd0n'
-description = 'utility to execute pavlov\'s rcon like admin interface commands'
+description = 'utility to issue commands to pavlov\'s rcon like admin interface'
 author_email = 'd0n@janeiskla.de'
 classifiers = ['Environment :: Console',
                'Environment :: MacOS X',
