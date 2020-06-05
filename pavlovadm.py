@@ -23,6 +23,8 @@ from yaml import \
 from json import \
     loads as jload, \
     dumps as jdump
+from json.decoder import \
+    JSONDecodeError
 
 from time import sleep
 
@@ -36,6 +38,8 @@ from requests import post
 from inquirer import prompt, List as iList
 
 from cmd import Cmd
+
+from colortext import tabd
 
 class PavlovADM(Cmd):
 	servers = {}
@@ -238,18 +242,14 @@ class PavlovADM(Cmd):
 		steams = ['Kick', 'Ban', 'Unban', 'InspectPlayer']
 		others = ['SwitchMap', 'SwitchTeam', 'GiveItem', 'GiveCash', 'GiveTeamCash', 'SetPlayerSkin', 'SetLimitedAmmoType']
 		order = ['Info', 'SwitchMap', 'RotateMap', 'ResetSND', 'Kick', 'Ban', 'Unban', 'InspectPlayer', 'GiveItem', 'GiveCash', 'GiveTeamCash', 'SetPlayerSkin', 'SetLimitedAmmoType', 'RefreshList', 'ServerInfo', '<Disconnect>']
-		try:
-			hlp = self.hlp.strip().strip('{}').split('": "')[1].strip().rstrip('"')
-		except IndexError as err:
-			print('index error occoured while interpreting %s - restarting...'%hlp)
-			return self._cmdselects()
-		hlp = [h.split(' ')[0] for h in hlp.split(', ') if h.split(' ')[0] != 'Disconnect'] + ['<Disconnect>']
+		hlp = self.hlp['Help']
+		hlp = [h.split(' ')[0] for h in hlp.split(', ') if h.split(' ')[0]] + ['Info']
 		ask = [
             iList(
                 'cmd',
                 carousel=True,
                 message='select command',
-                choices=order,
+                choices=[o for o in order if o.strip('<>') in hlp],
             ),
         ]
 		cmd = list(prompt(ask).values())[0].strip()
@@ -320,9 +320,10 @@ class PavlovADM(Cmd):
 		if cmd == 'Info':
 			if not self.maps:
 				self._getmaps(True)
-			msg = '%s\n%s\n%s\n'%(
-                '\n'.join('%s %s'%(k, v) for (k, v) in self.maps.items()),
-                self._send('ServerInfo'), self._send('RefreshList'))
+			l = max(len(k) for k in self.maps.keys())+1
+			msg = 'MapList:\n%s\n\n%s\n\n%s\n'%(
+			      '\n'.join('  %s%s= %s'%(k, ' '*int(l-len(k)), v) for (k, v) in self.maps.items()), \
+			      tabd(self._send('ServerInfo')), tabd(self._send('RefreshList')))
 			return msg
 		return self._send(cmd)
 
@@ -356,8 +357,11 @@ class PavlovADM(Cmd):
 			if answer:
 				res = self._getresponse()
 				if not res:
-					self.socket.sendall('\n'.encode())
+					self.socket.sendall(''.encode())
 					res = self._getresponse()
+			res = jload(res)
+		except JSONDecodeError as err:
+			print(err)
 		except TimeOutError:
 			print('we ran into a timeout wile executing "%s"'%data, end='')
 			self.cnt += 1
