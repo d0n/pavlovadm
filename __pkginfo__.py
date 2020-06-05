@@ -1,7 +1,7 @@
 """pavlovadm packaging information"""
 name = 'pavlovadm'
 provides = ['pavloavadm']
-version = '1.0'
+version = '1.1'
 install_requires = [
     'requests', 'inquirer', 'PyYAML']
 url = 'https://pypi.org/project/pavlovadm/'
