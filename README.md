@@ -18,7 +18,7 @@ You need to have python appropriate to your OS distribution. Get it from <https:
 
 Credits
 -------
-  * Mark Dey - a PAVLOV developer which saved alot of time when the rcon interface wasn't updated to full functionality
+  * Mark Dey - a PAVLOV developer who saved me alot of time when the rcon interface wasn't updated to full functionality
 
 
 Troubleshoot
